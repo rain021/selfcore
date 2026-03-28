@@ -7,6 +7,7 @@ let tray = null;
 let currentLang = "en";
 let activeProfile = "default";
 let windowVisible = true;
+let backendPort = 8100; // Discovered dynamically
 
 const TR = {
   "tray.editProfile":   { en: "Edit Profile", ko: "프로필 편집 열기" },
@@ -27,7 +28,7 @@ function tr(key) {
 
 function fetchJSON(urlPath) {
   return new Promise((resolve) => {
-    http.get(`http://127.0.0.1:8100${urlPath}`, (res) => {
+    http.get(`http://127.0.0.1:${backendPort}${urlPath}`, (res) => {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
@@ -41,7 +42,7 @@ function postJSON(urlPath, data) {
   return new Promise((resolve) => {
     const body = JSON.stringify(data);
     const req = http.request({
-      hostname: "127.0.0.1", port: 8100, path: urlPath,
+      hostname: "127.0.0.1", port: backendPort, path: urlPath,
       method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
     }, (res) => {
       let d = "";
@@ -51,6 +52,37 @@ function postJSON(urlPath, data) {
     req.on("error", () => resolve(null));
     req.write(body);
     req.end();
+  });
+}
+
+// Discover which port the Python backend is running on (8100-8102)
+function discoverBackendPort() {
+  return new Promise((resolve) => {
+    const ports = [8100, 8101, 8102];
+    let found = false;
+    let pending = ports.length;
+    for (const port of ports) {
+      const req = http.get(`http://127.0.0.1:${port}/api/health`, (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          if (!found) {
+            try {
+              const json = JSON.parse(data);
+              if (json.status === "ok") {
+                found = true;
+                backendPort = port;
+                console.log(`[SelfCore] Backend discovered on port ${port}`);
+                resolve(port);
+              }
+            } catch {}
+          }
+          if (--pending === 0 && !found) resolve(null);
+        });
+      });
+      req.on("error", () => { if (--pending === 0 && !found) resolve(null); });
+      req.setTimeout(1000, () => { req.destroy(); });
+    }
   });
 }
 
@@ -177,28 +209,68 @@ async function updateTrayMenu() {
 function registerShortcut() {
   globalShortcut.register("Ctrl+Shift+Space", async () => {
     try {
-      await refreshLangAndProfile();
-      const clipText = clipboard.readText();
-      if (!clipText || clipText.trim().length === 0) return;
+      console.log("[SelfCore] Step 1: Shortcut triggered");
 
-      const result = await fetchJSON(`/api/context?query=${encodeURIComponent(clipText)}`);
-      const context = result?.context;
-      if (context) {
-        const combined = context + "\n\n---\n\n" + clipText;
-        clipboard.writeText(combined);
-        new Notification({
-          title: "SelfCore",
-          body: "✓ " + tr("notify.ready"),
-          silent: true,
-        }).show();
-      } else {
+      // Re-discover port in case backend restarted
+      await discoverBackendPort();
+      await refreshLangAndProfile();
+
+      // Step 2: Read current clipboard
+      const clipText = clipboard.readText();
+      console.log(`[SelfCore] Step 2: Clipboard read (${clipText.length} chars)`);
+
+      if (!clipText || clipText.trim().length === 0) {
+        console.log("[SelfCore] Step 2: Clipboard empty, injecting context only");
+      }
+
+      // Step 3: Fetch context from API
+      const query = clipText.trim() || "general";
+      const apiUrl = `/api/context?query=${encodeURIComponent(query)}`;
+      console.log(`[SelfCore] Step 3: Fetching context from port ${backendPort}: ${apiUrl}`);
+
+      const result = await fetchJSON(apiUrl);
+      console.log(`[SelfCore] Step 4: API response: ${result ? "OK" : "FAILED"}`);
+
+      if (!result || !result.context) {
+        console.log("[SelfCore] Step 4: No context returned — backend may be down");
         new Notification({
           title: "SelfCore",
           body: tr("notify.backendDown"),
           silent: true,
         }).show();
+        return;
       }
+
+      // Step 5: Write combined text to clipboard
+      const context = result.context;
+      const combined = clipText.trim()
+        ? context + "\n\n---\n\n" + clipText
+        : context;
+      clipboard.writeText(combined);
+      console.log(`[SelfCore] Step 5: Wrote to clipboard (${combined.length} chars)`);
+
+      // Step 6: Verify clipboard was written correctly
+      const verify = clipboard.readText();
+      if (verify !== combined) {
+        console.log(`[SelfCore] Step 6: VERIFY FAILED — clipboard mismatch (got ${verify.length} chars)`);
+        new Notification({
+          title: "SelfCore",
+          body: "Clipboard write failed — try again",
+          silent: true,
+        }).show();
+        return;
+      }
+      console.log(`[SelfCore] Step 6: Clipboard verified OK (${verify.length} chars)`);
+
+      // Step 7: Show success notification only after verified write
+      new Notification({
+        title: "SelfCore",
+        body: "✓ " + tr("notify.ready"),
+        silent: true,
+      }).show();
+
     } catch (err) {
+      console.log(`[SelfCore] Shortcut error: ${err.message}`);
       new Notification({
         title: "SelfCore",
         body: tr("notify.backendDown"),
@@ -216,6 +288,7 @@ setInterval(async () => {
 }, 15000);
 
 app.whenReady().then(async () => {
+  await discoverBackendPort();
   await refreshLangAndProfile();
   createWindow();
   await createTray();
