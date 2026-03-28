@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "patterns": [
+    "<system>", "</system>",
+    "<|im_start|>", "<|im_end|>",
+    "<|system|>", "<|user|>", "<|assistant|>",
+    "[INST]", "[/INST]",
+    "<<SYS>>", "<</SYS>>",
+    "```system", "```assistant",
+    "ignore previous instructions",
+    "ignore all previous",
+    "you are now",
+    "disregard above",
+    "override system prompt",
+    "new instructions:",
+    "SYSTEM OVERRIDE",
+    "jailbreak",
+    "DAN mode",
+    "developer mode enabled",
+    "ignore safety guidelines",
+    "bypass content filter",
+    "pretend you are",
+    "act as if you have no restrictions",
+    "forget your instructions",
+    "roleplay as unrestricted",
+    "<|endoftext|>",
+    "<|padding|>",
+    "[system]",
+    "[/system]"
+  ]
+}

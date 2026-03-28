@@ -1,0 +1,113 @@
+{
+  "name": "selfcore",
+  "version": "1.0.0",
+  "description": "Personal AI Identity Engine — Own your AI identity. One file. Every AI.",
+  "main": "main.js",
+  "homepage": "https://github.com/selfcore-ai/selfcore",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "sensor": "py -3 selfcore.py",
+    "electron": "wait-on http://localhost:3000 && electron .",
+    "app:dev": "concurrently --names sensor,next,electron --kill-others \"npm run sensor\" \"npm run dev\" \"npm run electron\"",
+    "dist:win": "electron-builder --win"
+  },
+  "keywords": [
+    "ai",
+    "identity",
+    "profile",
+    "electron",
+    "selfcore",
+    "privacy"
+  ],
+  "author": "SelfCore Team",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.0.4",
+    "next": "^16.2.1",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "wait-on": "^9.0.4"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.selfcore.app",
+    "productName": "SelfCore",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "selfcore.py",
+      "analysis_engine.py",
+      "lib/**/*",
+      "app/**/*",
+      "assets/**/*",
+      "data/**/*",
+      "profiles/**/*",
+      "extension/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "selfcore.py",
+        "to": "selfcore.py"
+      },
+      {
+        "from": "analysis_engine.py",
+        "to": "analysis_engine.py"
+      },
+      {
+        "from": "data/",
+        "to": "data/"
+      },
+      {
+        "from": "profiles/",
+        "to": "profiles/"
+      },
+      {
+        "from": "extension/",
+        "to": "extension/"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SelfCore"
+    },
+    "portable": {
+      "artifactName": "SelfCore-Portable-${version}.${ext}"
+    }
+  }
+}

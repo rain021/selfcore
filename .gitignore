@@ -1,0 +1,12 @@
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+selfcore.db
+profiles/*.self
+dist/
+.next/
+out/
+*.egg-info/
+.env
+*.log

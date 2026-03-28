@@ -1,0 +1,13 @@
+pyperclip
+pyautogui
+psutil
+keyboard
+cryptography
+spacy
+scikit-learn
+ijson
+filelock
+tiktoken
+pynvml
+Pillow
+requests

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SelfCore Chrome Extension — Installation Guide</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.7;
+      padding: 0;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+    .lang-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 100;
+    }
+    .lang-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(88,230,255,0.3);
+      background: rgba(30,41,59,0.8);
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .lang-btn.active {
+      background: rgba(88,230,255,0.15);
+      color: #58E6FF;
+      border-color: #58E6FF;
+    }
+    .logo-area {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .logo {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #58E6FF, #0ea5e9);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 700; color: #0f172a;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      color: rgba(255,255,255,0.4);
+      font-size: 14px;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #58E6FF;
+      margin: 36px 0 16px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(88,230,255,0.15);
+    }
+    .step {
+      background: rgba(30,41,59,0.5);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      position: relative;
+      padding-left: 68px;
+    }
+    .step-num {
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(88,230,255,0.12);
+      color: #58E6FF;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px;
+    }
+    .step h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .step p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+    }
+    code {
+      background: rgba(88,230,255,0.08);
+      color: #58E6FF;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+    }
+    .note {
+      background: rgba(88,230,255,0.06);
+      border-left: 3px solid #58E6FF;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+    }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .feature-card {
+      background: rgba(30,41,59,0.5);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .feature-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .feature-card p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+    .shortcut {
+      display: inline-block;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 12px;
+      color: #fff;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 48px;
+      color: rgba(255,255,255,0.25);
+      font-size: 12px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button class="lang-btn active" onclick="switchLang('en')">EN</button>
+  <button class="lang-btn" onclick="switchLang('ko')">KO</button>
+</div>
+
+<div class="container">
+
+  <div class="logo-area">
+    <div class="logo">S</div>
+    <h1>SelfCore Chrome Extension</h1>
+    <div class="subtitle" data-en="MirrorSync v2 — AI Context Bridge" data-ko="MirrorSync v2 — AI 맥락 브릿지">MirrorSync v2 — AI Context Bridge</div>
+  </div>
+
+  <!-- ─── Features ──────────────────────────── -->
+  <h2 data-en="Features" data-ko="기능">Features</h2>
+  <div class="features">
+    <div class="feature-card">
+      <h4 data-en="Auto Context Injection" data-ko="자동 맥락 주입">Auto Context Injection</h4>
+      <p data-en="Automatically inject your SelfCore profile when chatting with AI" data-ko="AI와 대화할 때 SelfCore 프로필을 자동으로 주입">Automatically inject your SelfCore profile when chatting with AI</p>
+    </div>
+    <div class="feature-card">
+      <h4 data-en="Multi-Platform Support" data-ko="멀티 플랫폼 지원">Multi-Platform Support</h4>
+      <p data-en="Works with Claude, ChatGPT, Gemini, and Mistral" data-ko="Claude, ChatGPT, Gemini, Mistral 지원">Works with Claude, ChatGPT, Gemini, and Mistral</p>
+    </div>
+    <div class="feature-card">
+      <h4 data-en="Keyboard Shortcut" data-ko="키보드 단축키">Keyboard Shortcut</h4>
+      <p data-en="Press Ctrl+Shift+Space to inject context anytime" data-ko="Ctrl+Shift+Space로 언제든 맥락 주입">Press Ctrl+Shift+Space to inject context anytime</p>
+    </div>
+    <div class="feature-card">
+      <h4 data-en="Injection Logging" data-ko="주입 기록">Injection Logging</h4>
+      <p data-en="Track every injection in the SelfCore Insights dashboard" data-ko="SelfCore 인사이트 대시보드에서 모든 주입 추적">Track every injection in the SelfCore Insights dashboard</p>
+    </div>
+  </div>
+
+  <!-- ─── Prerequisites ─────────────────────── -->
+  <h2 data-en="Prerequisites" data-ko="사전 요구사항">Prerequisites</h2>
+  <div class="note" data-en="Make sure SelfCore backend (selfcore.py) is running on localhost:8100 before using the extension." data-ko="확장 프로그램을 사용하기 전에 SelfCore 백엔드(selfcore.py)가 localhost:8100에서 실행 중인지 확인하세요.">
+    Make sure SelfCore backend (selfcore.py) is running on localhost:8100 before using the extension.
+  </div>
+
+  <!-- ─── Installation Steps ────────────────── -->
+  <h2 data-en="Installation Steps" data-ko="설치 방법">Installation Steps</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <h3 data-en="Open Chrome Extensions Page" data-ko="Chrome 확장 프로그램 페이지 열기">Open Chrome Extensions Page</h3>
+    <p data-en="Open Google Chrome and navigate to:" data-ko="Google Chrome을 열고 다음으로 이동:">Open Google Chrome and navigate to:</p>
+    <p style="margin-top:6px"><code>chrome://extensions</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <h3 data-en="Enable Developer Mode" data-ko="개발자 모드 활성화">Enable Developer Mode</h3>
+    <p data-en="Toggle the 'Developer mode' switch in the top-right corner of the page." data-ko="페이지 오른쪽 상단의 '개발자 모드' 스위치를 켭니다.">Toggle the "Developer mode" switch in the top-right corner of the page.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <h3 data-en="Load Unpacked Extension" data-ko="압축해제된 확장 프로그램 로드">Load Unpacked Extension</h3>
+    <p data-en="Click 'Load unpacked' button, then select the extension/ folder inside your SelfCore directory:" data-ko="'압축해제된 확장 프로그램을 로드합니다' 버튼을 클릭한 후, SelfCore 디렉토리 내의 extension/ 폴더를 선택합니다:">Click "Load unpacked" button, then select the <code>extension/</code> folder inside your SelfCore directory:</p>
+    <p style="margin-top:6px"><code>C:\Users\user\Desktop\SelfCore\extension</code></p>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <h3 data-en="Pin the Extension" data-ko="확장 프로그램 고정">Pin the Extension</h3>
+    <p data-en="Click the puzzle icon in Chrome toolbar, then click the pin icon next to 'SelfCore MirrorSync' to keep it visible." data-ko="Chrome 도구 모음의 퍼즐 아이콘을 클릭한 후, 'SelfCore MirrorSync' 옆의 핀 아이콘을 클릭하여 표시합니다.">Click the puzzle icon in Chrome toolbar, then click the pin icon next to "SelfCore MirrorSync" to keep it visible.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <h3 data-en="Verify Connection" data-ko="연결 확인">Verify Connection</h3>
+    <p data-en="Click the SelfCore icon in the toolbar. If the status shows a green dot with 'Connected', you're all set!" data-ko="도구 모음의 SelfCore 아이콘을 클릭합니다. 상태가 초록색 점과 '연결됨'으로 표시되면 준비 완료입니다!">Click the SelfCore icon in the toolbar. If the status shows a green dot with "Connected", you're all set!</p>
+  </div>
+
+  <!-- ─── Usage ──────────────────────────────── -->
+  <h2 data-en="How to Use" data-ko="사용 방법">How to Use</h2>
+
+  <div class="step">
+    <div class="step-num">A</div>
+    <h3 data-en="Manual Injection" data-ko="수동 주입">Manual Injection</h3>
+    <p data-en="On any supported AI site, press" data-ko="지원되는 AI 사이트에서">On any supported AI site, press <span class="shortcut">Ctrl+Shift+Space</span></p>
+    <p data-en="Your SelfCore context will be prepended to the input field." data-ko="SelfCore 맥락이 입력 필드 앞에 추가됩니다.">Your SelfCore context will be prepended to the input field.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-num">B</div>
+    <h3 data-en="Auto-Inject Mode" data-ko="자동 주입 모드">Auto-Inject Mode</h3>
+    <p data-en="Open the SelfCore popup and enable 'Auto-inject on send'. Context will be automatically injected every time you press Enter to send a message." data-ko="SelfCore 팝업을 열고 '전송 시 자동 주입'을 활성화합니다. 메시지를 보낼 때마다 맥락이 자동으로 주입됩니다.">Open the SelfCore popup and enable "Auto-inject on send". Context will be automatically injected every time you press Enter to send a message.</p>
+  </div>
+
+  <!-- ─── Supported Sites ───────────────────── -->
+  <h2 data-en="Supported AI Sites" data-ko="지원되는 AI 사이트">Supported AI Sites</h2>
+  <div class="features">
+    <div class="feature-card">
+      <h4>Claude</h4>
+      <p>claude.ai</p>
+    </div>
+    <div class="feature-card">
+      <h4>ChatGPT</h4>
+      <p>chatgpt.com</p>
+    </div>
+    <div class="feature-card">
+      <h4>Gemini</h4>
+      <p>gemini.google.com</p>
+    </div>
+    <div class="feature-card">
+      <h4>Mistral</h4>
+      <p>chat.mistral.ai</p>
+    </div>
+  </div>
+
+  <!-- ─── Troubleshooting ───────────────────── -->
+  <h2 data-en="Troubleshooting" data-ko="문제 해결">Troubleshooting</h2>
+
+  <div class="note" data-en="'Not running' status: Make sure selfcore.py is running. Start it with: py -3 selfcore.py" data-ko="'실행 안 됨' 상태: selfcore.py가 실행 중인지 확인하세요. 다음으로 시작: py -3 selfcore.py">
+    <strong data-en="'Not running' status:" data-ko="'실행 안 됨' 상태:">"Not running" status:</strong> Make sure selfcore.py is running. Start it with: <code>py -3 selfcore.py</code>
+  </div>
+
+  <div class="note" data-en="Extension not injecting: Reload the AI site tab after installing the extension. Content scripts only load on fresh page loads." data-ko="확장 프로그램이 주입되지 않음: 확장 프로그램 설치 후 AI 사이트 탭을 새로고침하세요. 콘텐츠 스크립트는 새 페이지 로드에서만 로드됩니다.">
+    <strong data-en="Extension not injecting:" data-ko="확장 프로그램이 주입되지 않음:">Extension not injecting:</strong> Reload the AI site tab after installing the extension. Content scripts only load on fresh page loads.
+  </div>
+
+  <div class="note" data-en="Badge not showing: Check that the extension has permission for the current site in chrome://extensions." data-ko="배지가 표시되지 않음: chrome://extensions에서 확장 프로그램이 현재 사이트에 대한 권한이 있는지 확인하세요.">
+    <strong data-en="Badge not showing:" data-ko="배지가 표시되지 않음:">Badge not showing:</strong> Check that the extension has permission for the current site in <code>chrome://extensions</code>.
+  </div>
+
+  <div class="footer">
+    SelfCore v3.0 — Personal AI Identity Engine
+  </div>
+</div>
+
+<script>
+  function switchLang(l) {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.lang-btn[onclick*="' + l + '"]').classList.add('active');
+    document.querySelectorAll('[data-' + l + ']').forEach(el => {
+      el.textContent = el.getAttribute('data-' + l);
+    });
+  }
+</script>
+</body>
+</html>
