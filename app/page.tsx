@@ -83,6 +83,8 @@ export default function ProfileEditor() {
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const chatgptAnalysisRef = useRef<HTMLInputElement>(null);
   const claudeAnalysisRef = useRef<HTMLInputElement>(null);
+  const geminiAnalysisRef = useRef<HTMLInputElement>(null);
+  const grokAnalysisRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -250,6 +252,18 @@ export default function ProfileEditor() {
     e.target.value = "";
   };
 
+  const handleAnalysisGemini = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    await runAnalysis("/api/analyze/gemini", await f.arrayBuffer(), true);
+    e.target.value = "";
+  };
+
+  const handleAnalysisGrok = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    await runAnalysis("/api/analyze/grok", await f.arrayBuffer(), true);
+    e.target.value = "";
+  };
+
   const handleAnalysisText = async () => {
     if (!analysisText.trim()) return;
     await runAnalysis("/api/analyze/text", { text: analysisText });
@@ -261,9 +275,13 @@ export default function ProfileEditor() {
     e.preventDefault();
     e.stopPropagation();
     const f = e.dataTransfer.files[0];
-    if (!f || !f.name.endsWith(".zip")) { showToast(T("toast.zipOnly")); return; }
-    const name = f.name.toLowerCase();
-    const endpoint = name.includes("claude") ? "/api/analyze/claude" : "/api/analyze/chatgpt";
+    if (!f) return;
+    const ext = f.name.toLowerCase();
+    if (!ext.endsWith(".zip") && !ext.endsWith(".json") && !ext.endsWith(".html")) { showToast(T("toast.zipOnly")); return; }
+    const endpoint = ext.includes("claude") ? "/api/analyze/claude"
+      : ext.includes("gemini") || ext.includes("takeout") || ext.includes("myactivity") ? "/api/analyze/gemini"
+      : ext.includes("grok") || ext.includes("twitter") ? "/api/analyze/grok"
+      : "/api/analyze/chatgpt";
     await runAnalysis(endpoint, await f.arrayBuffer(), true);
   };
 
@@ -487,11 +505,15 @@ export default function ProfileEditor() {
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
               <button onClick={() => chatgptAnalysisRef.current?.click()} style={{ ...pillBtn, background: "rgba(16,163,127,0.15)", color: "#34d399", border: "1px solid rgba(52,211,153,0.3)" }}>{T("analysis.import.chatgpt")}</button>
               <button onClick={() => claudeAnalysisRef.current?.click()} style={{ ...pillBtn, background: "rgba(167,139,250,0.15)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.3)" }}>{T("analysis.import.claude")}</button>
+              <button onClick={() => geminiAnalysisRef.current?.click()} style={{ ...pillBtn, background: "rgba(66,133,244,0.15)", color: "#4285f4", border: "1px solid rgba(66,133,244,0.3)" }}>{T("analysis.import.gemini")}</button>
+              <button onClick={() => grokAnalysisRef.current?.click()} style={{ ...pillBtn, background: "rgba(255,255,255,0.1)", color: "#e7e9ea", border: "1px solid rgba(255,255,255,0.2)" }}>{T("analysis.import.grok")}</button>
               <button onClick={() => setShowTextModal(true)} style={{ ...pillBtn, background: `${ACCENT}15`, color: ACCENT, border: `1px solid ${ACCENT}44` }}>{T("analysis.import.text")}</button>
               {analysisResults.length >= 2 && <button onClick={mergeResults} style={{ ...pillBtn, background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>{T("analysis.results.mergeBtn")}</button>}
             </div>
             <input ref={chatgptAnalysisRef} type="file" accept=".zip" style={{ display: "none" }} onChange={handleAnalysisChatGPT} />
             <input ref={claudeAnalysisRef} type="file" accept=".zip" style={{ display: "none" }} onChange={handleAnalysisClaude} />
+            <input ref={geminiAnalysisRef} type="file" accept=".zip,.json,.html" style={{ display: "none" }} onChange={handleAnalysisGemini} />
+            <input ref={grokAnalysisRef} type="file" accept=".zip,.json" style={{ display: "none" }} onChange={handleAnalysisGrok} />
             <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)" }}>{T("analysis.import.dragdrop")}</p>
 
             {/* 2. Progress bar */}
@@ -773,6 +795,28 @@ export default function ProfileEditor() {
                 <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
                   {(["step1", "step2", "step3", "step4", "step5"] as const).map(s => (
                     <p key={s} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", padding: "4px 0" }}>{T(`analysis.guide.claude.${s}` as any)}</p>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setShowGuide(showGuide === "gemini" ? null : "gemini")} style={{ ...pillBtn, background: "rgba(255,255,255,0.03)", textAlign: "left" as any, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <span>{T("analysis.guide.gemini.title")}</span>
+                <span style={{ fontSize: "12px" }}>{showGuide === "gemini" ? "▲" : "▼"}</span>
+              </button>
+              {showGuide === "gemini" && (
+                <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                  {(["step1", "step2", "step3", "step4", "step5", "step6"] as const).map(s => (
+                    <p key={s} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", padding: "4px 0" }}>{T(`analysis.guide.gemini.${s}` as any)}</p>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setShowGuide(showGuide === "grok" ? null : "grok")} style={{ ...pillBtn, background: "rgba(255,255,255,0.03)", textAlign: "left" as any, display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <span>{T("analysis.guide.grok.title")}</span>
+                <span style={{ fontSize: "12px" }}>{showGuide === "grok" ? "▲" : "▼"}</span>
+              </button>
+              {showGuide === "grok" && (
+                <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: "8px" }}>
+                  {(["step1", "step2", "step3", "step4", "step5"] as const).map(s => (
+                    <p key={s} style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)", padding: "4px 0" }}>{T(`analysis.guide.grok.${s}` as any)}</p>
                   ))}
                 </div>
               )}

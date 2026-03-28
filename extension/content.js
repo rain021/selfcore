@@ -24,6 +24,7 @@
     if (host.includes("chatgpt.com")) return "chatgpt";
     if (host.includes("gemini.google.com")) return "gemini";
     if (host.includes("chat.mistral.ai")) return "mistral";
+    if (host.includes("x.com") || host.includes("grok.com")) return "grok";
     return null;
   }
 
@@ -45,6 +46,11 @@
       case "mistral":
         return document.querySelector("textarea")
           || document.querySelector("div[contenteditable='true']");
+      case "grok":
+        return document.querySelector("textarea[placeholder]")
+          || document.querySelector("div[contenteditable='true'][role='textbox']")
+          || document.querySelector("div[contenteditable='true']")
+          || document.querySelector("textarea");
       default:
         return null;
     }

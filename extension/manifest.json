@@ -14,7 +14,9 @@
         "https://claude.ai/*",
         "https://chatgpt.com/*",
         "https://gemini.google.com/*",
-        "https://chat.mistral.ai/*"
+        "https://chat.mistral.ai/*",
+        "https://x.com/*",
+        "https://grok.com/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

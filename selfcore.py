@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 try:
     from analysis_engine import (
         parse_chatgpt_export, parse_claude_export, parse_text_paste,
+        parse_gemini_export, parse_grok_export,
         merge_analysis_results, run_full_analysis, sanitize_profile_data,
         get_progress, set_progress, extract_topics, analyze_communication_style,
         check_ollama_status, start_ollama_if_needed, pull_model_if_needed,
@@ -1077,6 +1078,38 @@ class SelfCoreHandler(BaseHTTPRequestHandler):
                     return
                 result = run_full_analysis(messages)
                 result["source"] = "claude"
+                self._json(result)
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+
+        elif p == "/api/analyze/gemini":
+            if not ANALYSIS_ENGINE_AVAILABLE:
+                self._json({"error": "Analysis engine not available"}, 500)
+                return
+            try:
+                body = self._body()
+                messages = parse_gemini_export(body)
+                if not messages:
+                    self._json({"error": "No user messages found"}, 400)
+                    return
+                result = run_full_analysis(messages)
+                result["source"] = "gemini"
+                self._json(result)
+            except Exception as e:
+                self._json({"error": str(e)}, 500)
+
+        elif p == "/api/analyze/grok":
+            if not ANALYSIS_ENGINE_AVAILABLE:
+                self._json({"error": "Analysis engine not available"}, 500)
+                return
+            try:
+                body = self._body()
+                messages = parse_grok_export(body)
+                if not messages:
+                    self._json({"error": "No user messages found"}, 400)
+                    return
+                result = run_full_analysis(messages)
+                result["source"] = "grok"
                 self._json(result)
             except Exception as e:
                 self._json({"error": str(e)}, 500)

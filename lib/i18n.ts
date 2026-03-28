@@ -233,6 +233,23 @@ const translations = {
   "analysis.suggestions.generate": { en: "Generate Suggestions", ko: "제안 생성" },
   "analysis.suggestions.source": { en: "Source", ko: "출처" },
 
+  // ─── Gemini & Grok platform support ──
+  "analysis.import.gemini": { en: "Gemini Import", ko: "Gemini 가져오기" },
+  "analysis.import.grok": { en: "Grok Import", ko: "Grok 가져오기" },
+  "analysis.guide.gemini.title": { en: "How to export Gemini data", ko: "Gemini 데이터 내보내기 방법" },
+  "analysis.guide.gemini.step1": { en: "1. Go to Google Takeout (takeout.google.com)", ko: "1. Google Takeout(takeout.google.com)에 접속합니다" },
+  "analysis.guide.gemini.step2": { en: "2. Click 'Deselect all'", ko: "2. '모두 선택 해제'를 클릭합니다" },
+  "analysis.guide.gemini.step3": { en: "3. Find 'My Activity' and select 'Gemini Apps' only", ko: "3. '내 활동' 섹션에서 'Gemini Apps'만 선택합니다" },
+  "analysis.guide.gemini.step4": { en: "4. Choose JSON format for export", ko: "4. 내보내기 형식을 JSON으로 선택합니다" },
+  "analysis.guide.gemini.step5": { en: "5. Click 'Create export' and download the .zip", ko: "5. '내보내기 만들기'를 클릭하고 .zip을 다운로드합니다" },
+  "analysis.guide.gemini.step6": { en: "6. Upload the .zip using the 'Gemini Import' button above", ko: "6. 위의 'Gemini 가져오기' 버튼으로 업로드합니다" },
+  "analysis.guide.grok.title": { en: "How to export Grok data", ko: "Grok 데이터 내보내기 방법" },
+  "analysis.guide.grok.step1": { en: "1. Log in to X (x.com)", ko: "1. X(x.com)에 로그인합니다" },
+  "analysis.guide.grok.step2": { en: "2. Go to Settings → Your Account → Download Archive", ko: "2. 설정 → 계정 → 데이터 다운로드를 선택합니다" },
+  "analysis.guide.grok.step3": { en: "3. Click 'Request archive'", ko: "3. 아카이브 요청을 클릭합니다" },
+  "analysis.guide.grok.step4": { en: "4. Download the .zip from email", ko: "4. 이메일로 받은 .zip을 다운로드합니다" },
+  "analysis.guide.grok.step5": { en: "5. Upload using 'Grok Import' button, or copy-paste text", ko: "5. 'Grok 가져오기'로 업로드하거나 텍스트를 복사-붙여넣기하세요" },
+
   // ─── Phase 5A — Hardcoded string cleanup ──
   "toast.saved": { en: "Saved", ko: "저장됨" },
   "toast.applied": { en: "applied", ko: "적용됨" },

@@ -393,6 +393,233 @@ def parse_claude_export(zip_path_or_bytes):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Gemini Export Parser (Google Takeout)
+# ═══════════════════════════════════════════════════════════════════
+
+def parse_gemini_export(zip_path_or_bytes):
+    """
+    Google Takeout Gemini export parser.
+    Format A: JSON (MyActivity.json) — activity objects with "title" field
+    Format B: HTML (MyActivity.html) — parse user message blocks
+    Auto-detects format from file contents inside .zip.
+    Returns: [{"role": "user", "text": "...", "timestamp": ...}, ...]
+    """
+    set_progress("running", 10, "Opening Gemini export...")
+    results = []
+
+    # Handle raw bytes or file path
+    try:
+        if isinstance(zip_path_or_bytes, (bytes, bytearray)):
+            raw = zip_path_or_bytes
+        else:
+            with open(zip_path_or_bytes, "rb") as f:
+                raw = f.read()
+    except Exception:
+        set_progress("error", 0, "Cannot read file")
+        return []
+
+    # Check if it's a ZIP or a direct JSON/HTML file
+    is_zip = raw[:4] == b'PK\x03\x04'
+
+    json_data_list = []
+    html_data_list = []
+
+    if is_zip:
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(raw))
+        except Exception:
+            set_progress("error", 0, "Invalid zip file")
+            return []
+
+        for name in zf.namelist():
+            lower = name.lower()
+            if "gemini" in lower or "myactivity" in lower or "my activity" in lower.replace("_", " "):
+                if lower.endswith(".json"):
+                    json_data_list.append(zf.read(name))
+                elif lower.endswith(".html") or lower.endswith(".htm"):
+                    html_data_list.append(zf.read(name))
+        zf.close()
+    else:
+        # Direct file: try JSON first, then HTML
+        try:
+            json.loads(raw)
+            json_data_list.append(raw)
+        except Exception:
+            html_data_list.append(raw)
+
+    set_progress("running", 30, "Parsing Gemini data...")
+
+    # Parse JSON format (Google Takeout MyActivity.json)
+    for jdata in json_data_list:
+        try:
+            activities = json.loads(jdata)
+            if not isinstance(activities, list):
+                activities = [activities]
+            for act in activities:
+                title = act.get("title", "")
+                # Google Takeout titles: "Asked Gemini ...", "Talked to Gemini ...",
+                # or just the query text with a "Gemini Apps" product tag
+                products = [p.get("name", "") for p in act.get("products", [])]
+                is_gemini = any("gemini" in p.lower() for p in products) or "gemini" in title.lower()
+                if not is_gemini:
+                    continue
+
+                # Strip common prefixes
+                text = title
+                for prefix in ["Asked Gemini: ", "Asked Gemini ", "Gemini에게 질문: ", "Gemini에게 질문 "]:
+                    if text.startswith(prefix):
+                        text = text[len(prefix):]
+                        break
+
+                if text.strip() and text.strip() != "Gemini":
+                    ts = act.get("time", act.get("timestamp"))
+                    results.append({"role": "user", "text": text.strip(), "timestamp": ts})
+        except Exception:
+            continue
+
+    # Parse HTML format
+    for hdata in html_data_list:
+        try:
+            html_text = hdata.decode("utf-8", errors="replace")
+            # Google Takeout HTML uses content-cell divs
+            # Pattern: <div class="content-cell ...">user query text</div>
+            import re as _re
+            # Extract text from content cells (skip header/metadata cells)
+            cells = _re.findall(
+                r'<div class="content-cell[^"]*"[^>]*>(.*?)</div>',
+                html_text, _re.DOTALL
+            )
+            for cell in cells:
+                # Strip HTML tags
+                text = _re.sub(r'<[^>]+>', '', cell).strip()
+                # Skip system text, empty, or very short
+                if not text or len(text) < 3:
+                    continue
+                # Skip metadata lines
+                if text.startswith("Gemini Apps") or text.startswith("Products:"):
+                    continue
+                results.append({"role": "user", "text": text, "timestamp": None})
+        except Exception:
+            continue
+
+    set_progress("running", 85, f"Extracted {len(results)} Gemini messages")
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Grok Export Parser (X/Twitter)
+# ═══════════════════════════════════════════════════════════════════
+
+def parse_grok_export(zip_path_or_bytes):
+    """
+    Grok (X/Twitter) export parser.
+    Supports X Data Archive (.zip) with Grok conversation data.
+    For PDF: returns empty with message (not supported in v1).
+    Returns: [{"role": "user", "text": "...", "timestamp": ...}, ...]
+    """
+    set_progress("running", 10, "Opening Grok export...")
+    results = []
+
+    try:
+        if isinstance(zip_path_or_bytes, (bytes, bytearray)):
+            raw = zip_path_or_bytes
+        else:
+            with open(zip_path_or_bytes, "rb") as f:
+                raw = f.read()
+    except Exception:
+        set_progress("error", 0, "Cannot read file")
+        return []
+
+    # Check if PDF (unsupported)
+    if raw[:5] == b'%PDF-':
+        set_progress("error", 0, "Grok PDF parsing not supported in v1. Copy-paste text instead.")
+        return []
+
+    is_zip = raw[:4] == b'PK\x03\x04'
+
+    json_files = []
+
+    if is_zip:
+        try:
+            zf = zipfile.ZipFile(io.BytesIO(raw))
+        except Exception:
+            set_progress("error", 0, "Invalid zip file")
+            return []
+
+        for name in zf.namelist():
+            lower = name.lower()
+            # X archive: look for grok-related JSON files
+            if lower.endswith(".json") and ("grok" in lower or "conversation" in lower or "chat" in lower):
+                json_files.append(zf.read(name))
+            # Also check data/grok*.js files in Twitter archive format
+            elif lower.endswith(".js") and "grok" in lower:
+                # Twitter archives wrap JSON in: window.YTD.grok.part0 = [...]
+                raw_js = zf.read(name)
+                try:
+                    text_js = raw_js.decode("utf-8", errors="replace")
+                    eq_idx = text_js.index("=")
+                    json_part = text_js[eq_idx + 1:].strip()
+                    json.loads(json_part)  # validate
+                    json_files.append(json_part.encode("utf-8"))
+                except Exception:
+                    pass
+        zf.close()
+    else:
+        # Direct JSON
+        try:
+            json.loads(raw)
+            json_files.append(raw)
+        except Exception:
+            # Not JSON either — try as text
+            try:
+                text = raw.decode("utf-8", errors="replace")
+                from analysis_engine import parse_text_paste
+                return parse_text_paste(text)
+            except Exception:
+                set_progress("error", 0, "Unsupported file format")
+                return []
+
+    set_progress("running", 30, "Parsing Grok conversations...")
+
+    for jdata in json_files:
+        try:
+            data = json.loads(jdata)
+            # Handle list of conversations or single conversation
+            conversations = data if isinstance(data, list) else [data]
+
+            for conv in conversations:
+                # Support various conversation formats
+                messages = (
+                    conv.get("messages", []) or
+                    conv.get("conversation", {}).get("messages", []) or
+                    conv.get("grokConversation", {}).get("messages", []) or
+                    []
+                )
+                if not isinstance(messages, list):
+                    # If conv itself is a message
+                    if "text" in conv or "content" in conv:
+                        messages = [conv]
+                    else:
+                        continue
+
+                for msg in messages:
+                    role = msg.get("role", msg.get("sender", msg.get("author", "")))
+                    if role.lower() not in ("user", "human"):
+                        continue
+                    text = msg.get("text", msg.get("content", ""))
+                    if isinstance(text, list):
+                        text = " ".join(str(t) for t in text if isinstance(t, str))
+                    if isinstance(text, str) and text.strip():
+                        ts = msg.get("timestamp", msg.get("created_at", msg.get("time")))
+                        results.append({"role": "user", "text": text.strip(), "timestamp": ts})
+        except Exception:
+            continue
+
+    set_progress("running", 85, f"Extracted {len(results)} Grok messages")
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════
 # TASK 5c: Text Paste Parser
 # ═══════════════════════════════════════════════════════════════════
 # Turn markers
