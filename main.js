@@ -1,23 +1,51 @@
 const { app, BrowserWindow, Tray, Menu, globalShortcut, Notification, nativeImage, dialog, clipboard, ipcMain } = require("electron");
 const path = require("path");
 const http = require("http");
+const fs = require("fs");
+
+// ─── Crash diagnostics ──────────────────────
+const LOG_PATH = path.join(__dirname, "crash.log");
+function crashLog(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  try { fs.appendFileSync(LOG_PATH, line); } catch {}
+  console.log(msg);
+}
+process.on("uncaughtException", (err) => {
+  crashLog(`UNCAUGHT EXCEPTION: ${err.stack || err}`);
+});
+process.on("unhandledRejection", (reason) => {
+  crashLog(`UNHANDLED REJECTION: ${reason?.stack || reason}`);
+});
+
+// ─── Single instance lock ────────────────────
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  crashLog("Another instance is running — quitting this one.");
+  app.quit();
+}
 
 let mainWindow = null;
 let tray = null;
 let currentLang = "en";
 let activeProfile = "default";
 let windowVisible = true;
-let backendPort = 8100; // Discovered dynamically
+let backendPort = 8100;
+let isQuitting = false;
+
+const FRONTEND_URL = "http://localhost:3000";
+const MAX_LOAD_RETRIES = 30;  // 30 x 2s = 60s max wait
+let loadRetries = 0;
+let lastLoadFailed = false;
 
 const TR = {
-  "tray.editProfile":   { en: "Edit Profile", ko: "프로필 편집 열기" },
-  "tray.quit":          { en: "Quit", ko: "종료" },
-  "tray.active":        { en: "Active profile", ko: "활성 프로필" },
-  "quit.message":       { en: "Are you sure you want to quit SelfCore?", ko: "SelfCore를 종료하시겠습니까?" },
-  "quit.yes":           { en: "Quit", ko: "종료" },
-  "quit.no":            { en: "Cancel", ko: "취소" },
-  "notify.ready":       { en: "SelfCore context ready. Paste into your AI.", ko: "SelfCore 맥락이 준비되었습니다. AI에 붙여넣으세요." },
-  "notify.backendDown": { en: "Cannot connect to SelfCore backend", ko: "SelfCore 백엔드에 연결할 수 없습니다" },
+  "tray.editProfile":   { en: "Edit Profile", ko: "\ud504\ub85c\ud544 \ud3b8\uc9d1 \uc5f4\uae30" },
+  "tray.quit":          { en: "Quit", ko: "\uc885\ub8cc" },
+  "tray.active":        { en: "Active profile", ko: "\ud65c\uc131 \ud504\ub85c\ud544" },
+  "quit.message":       { en: "Are you sure you want to quit SelfCore?", ko: "SelfCore\ub97c \uc885\ub8cc\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?" },
+  "quit.yes":           { en: "Quit", ko: "\uc885\ub8cc" },
+  "quit.no":            { en: "Cancel", ko: "\ucde8\uc18c" },
+  "notify.ready":       { en: "SelfCore context ready. Paste into your AI.", ko: "SelfCore \ub9e5\ub77d\uc774 \uc900\ube44\ub418\uc5c8\uc2b5\ub2c8\ub2e4. AI\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694." },
+  "notify.backendDown": { en: "Cannot connect to SelfCore backend", ko: "SelfCore \ubc31\uc5d4\ub4dc\uc5d0 \uc5f0\uacb0\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4" },
 };
 
 function tr(key) {
@@ -101,6 +129,7 @@ function createWindow() {
     frame: false,
     center: true,
     resizable: true,
+    show: false,  // Don't show until page is ready
     backgroundColor: "#0f172a",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -110,11 +139,65 @@ function createWindow() {
     icon: path.join(__dirname, "assets", "icon.png"),
   });
 
-  mainWindow.loadURL("http://localhost:3000");
+  crashLog("createWindow: loading " + FRONTEND_URL);
+  loadRetries = 0;
+  lastLoadFailed = false;
+  mainWindow.loadURL(FRONTEND_URL);
+
+  // Show window only after page loads successfully (not the error page)
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (lastLoadFailed) {
+      // This is the error page loading after did-fail-load — ignore
+      lastLoadFailed = false;
+      return;
+    }
+    crashLog("createWindow: page loaded OK");
+    loadRetries = 0;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+    }
+  });
+
+  // Retry on load failure (Next.js not ready yet)
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+    lastLoadFailed = true;
+    loadRetries++;
+    crashLog(`createWindow: LOAD FAILED code=${errorCode} desc=${errorDescription} (retry ${loadRetries}/${MAX_LOAD_RETRIES})`);
+    if (loadRetries < MAX_LOAD_RETRIES && !isQuitting) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          crashLog(`createWindow: retrying load... (attempt ${loadRetries})`);
+          lastLoadFailed = false;
+          mainWindow.loadURL(FRONTEND_URL);
+        }
+      }, 2000);
+    }
+  });
+
+  // Log renderer crashes
+  mainWindow.webContents.on("render-process-gone", (event, details) => {
+    crashLog(`createWindow: RENDERER CRASHED reason=${details.reason} exitCode=${details.exitCode}`);
+    // Attempt to recover by reloading
+    if (details.reason !== "killed" && !isQuitting) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          crashLog("createWindow: attempting reload after crash...");
+          mainWindow.loadURL(FRONTEND_URL);
+        }
+      }, 2000);
+    }
+  });
+
+  mainWindow.on("closed", () => {
+    crashLog("createWindow: window closed");
+    mainWindow = null;
+  });
 
   mainWindow.on("close", (e) => {
+    if (isQuitting) return;  // Let it close during app quit
     e.preventDefault();
     refreshLangAndProfile().then(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
       dialog.showMessageBox(mainWindow, {
         type: "question",
         buttons: [tr("quit.yes"), tr("quit.no")],
@@ -123,11 +206,12 @@ function createWindow() {
         message: tr("quit.message"),
       }).then((result) => {
         if (result.response === 0) {
+          isQuitting = true;
           mainWindow.destroy();
           app.quit();
         }
       });
-    });
+    }).catch(() => {});
   });
 
   mainWindow.on("hide", () => { windowVisible = false; });
@@ -159,7 +243,7 @@ async function createTray() {
   }
 
   tray = new Tray(trayIcon);
-  tray.setToolTip("SelfCore — Personal AI Identity Engine");
+  tray.setToolTip("SelfCore \u2014 Personal AI Identity Engine");
   await updateTrayMenu();
 
   tray.on("click", () => {
@@ -179,7 +263,7 @@ async function updateTrayMenu() {
   const profileList = profiles?.profiles || ["default"];
 
   const profileSubmenu = profileList.map((p) => ({
-    label: p === activeProfile ? `● ${p}` : `  ${p}`,
+    label: p === activeProfile ? `\u25cf ${p}` : `  ${p}`,
     click: async () => {
       await postJSON("/api/profiles/switch", { name: p });
       await updateTrayMenu();
@@ -198,7 +282,11 @@ async function updateTrayMenu() {
     { type: "separator" },
     {
       label: tr("tray.quit"),
-      click: () => { mainWindow?.destroy(); app.quit(); },
+      click: () => {
+        isQuitting = true;
+        mainWindow?.destroy();
+        app.quit();
+      },
     },
   ]);
 
@@ -232,7 +320,7 @@ function registerShortcut() {
       console.log(`[SelfCore] Step 4: API response: ${result ? "OK" : "FAILED"}`);
 
       if (!result || !result.context) {
-        console.log("[SelfCore] Step 4: No context returned — backend may be down");
+        console.log("[SelfCore] Step 4: No context returned \u2014 backend may be down");
         new Notification({
           title: "SelfCore",
           body: tr("notify.backendDown"),
@@ -252,10 +340,10 @@ function registerShortcut() {
       // Step 6: Verify clipboard was written correctly
       const verify = clipboard.readText();
       if (verify !== combined) {
-        console.log(`[SelfCore] Step 6: VERIFY FAILED — clipboard mismatch (got ${verify.length} chars)`);
+        console.log(`[SelfCore] Step 6: VERIFY FAILED \u2014 clipboard mismatch (got ${verify.length} chars)`);
         new Notification({
           title: "SelfCore",
-          body: "Clipboard write failed — try again",
+          body: "Clipboard write failed \u2014 try again",
           silent: true,
         }).show();
         return;
@@ -265,7 +353,7 @@ function registerShortcut() {
       // Step 7: Show success notification only after verified write
       new Notification({
         title: "SelfCore",
-        body: "✓ " + tr("notify.ready"),
+        body: "\u2713 " + tr("notify.ready"),
         silent: true,
       }).show();
 
@@ -280,6 +368,17 @@ function registerShortcut() {
   });
 }
 
+// ─── Second instance handler ─────────────────
+app.on("second-instance", () => {
+  crashLog("second-instance: bringing existing window to front");
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    windowVisible = true;
+  }
+});
+
 // Periodically refresh tray (only when window is visible, to save resources)
 setInterval(async () => {
   try {
@@ -288,12 +387,35 @@ setInterval(async () => {
 }, 15000);
 
 app.whenReady().then(async () => {
-  await discoverBackendPort();
-  await refreshLangAndProfile();
-  createWindow();
-  await createTray();
-  registerShortcut();
+  try {
+    crashLog("app.whenReady: starting...");
+    await discoverBackendPort();
+    crashLog(`app.whenReady: backend on port ${backendPort}`);
+    await refreshLangAndProfile();
+    crashLog("app.whenReady: creating window...");
+    createWindow();
+    crashLog("app.whenReady: creating tray...");
+    await createTray();
+    crashLog("app.whenReady: registering shortcut...");
+    registerShortcut();
+    crashLog("app.whenReady: fully initialized");
+  } catch (err) {
+    crashLog(`app.whenReady: FATAL ERROR: ${err.stack || err}`);
+  }
 });
 
-app.on("will-quit", () => { globalShortcut.unregisterAll(); });
-app.on("window-all-closed", () => { app.quit(); });
+app.on("before-quit", () => {
+  crashLog("app: before-quit");
+  isQuitting = true;
+});
+app.on("will-quit", () => {
+  crashLog("app: will-quit");
+  globalShortcut.unregisterAll();
+});
+app.on("window-all-closed", () => {
+  crashLog("app: window-all-closed");
+  // On Windows, quit only if intentionally quitting
+  if (isQuitting) {
+    app.quit();
+  }
+});
